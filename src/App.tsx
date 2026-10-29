@@ -389,7 +389,7 @@ function Home() {
       <main>
         <section className="hero">
           <div className="hero-kicker">
-            <span>INDIA / CAFÉ CULTURE / FIELD NOTES</span>
+            <span>INDIA / HOSPITALITY CULTURE / FIELD NOTES</span>
             <span>EST. 2025 — ALWAYS IN PROGRESS</span>
           </div>
           <h1>
