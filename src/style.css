@@ -268,8 +268,8 @@ select:focus-visible,
   justify-content: center;
 }
 .map-canvas svg {
-  width: min(100%, 720px);
-  height: 690px;
+  width: min(100%, 820px);
+  height: 820px;
   overflow: visible;
 }
 .map-region {
