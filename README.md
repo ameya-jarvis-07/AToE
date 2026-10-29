@@ -1,6 +1,6 @@
-# ATE — Asthitva's Title of Existence
+# ATOE — Asthitva's Title of Existence
 
-ATE is a frontend-only, map-led café discovery guide. Café records are
+ATOE is a frontend-only, map-led hospitality discovery guide. Hospitality records are
 typed in [src/data/seed.ts](./src/data/seed.ts); there is no database,
 Supabase project, API key, or remote content service.
 
@@ -36,18 +36,23 @@ cannot provide selectable geographic boundaries.
 
 ## Content
 
-The initial café descriptions remain in the frontend seed data. Unknown
+The initial hospitality descriptions remain in the frontend seed data. Unknown
 addresses, hours, prices, contact details, coordinates, websites, and
 photographs stay absent until supplied and verified. Apki Dulari remains
-unpublished. The Chug and Farro are not café records.
+unpublished. The Chug and Farro are not hospitality records.
 
 ## Routes
 
 - `/` — interactive India map
-- `/india/:stateSlug` — state café directory
-- `/cafe/:cafeSlug` — café profile
-- `/search?q=...` — published café search
+- `/india/:stateSlug` — state hospitality directory with city search
+- `/cafe/:cafeSlug` — hospitality profile
+- `/search?q=...` — city/state and published hospitality search
 - `/about` — editorial and data approach
 
+The city reference dataset is stored in
+[src/data/cities.json](./src/data/cities.json). It is frontend-only and is
+used for city/state discovery and state-page city suggestions. A hospitality
+record is not assigned to a city until that location is supplied and verified.
+
 The editorial collection section has been removed. The site now presents
-the map, state directories, and individual café profiles directly.
+the map, state directories, and individual hospitality profiles directly.

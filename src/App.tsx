@@ -17,12 +17,13 @@ import {
   Search,
 } from "lucide-react";
 import { cafes, states, type Cafe, type StateRecord } from "./data/seed";
+import cityData from "./data/cities.json";
 import { loadMapFeatures, type MapPath } from "./lib/map";
-import "./styles.css";
+import "./style.css";
 
 function useTitle(title: string, description: string) {
   useEffect(() => {
-    document.title = `${title} — ATE`;
+    document.title = `${title} — ATOE`;
     let meta = document.querySelector('meta[name="description"]');
     if (!meta) {
       meta = document.createElement("meta");
@@ -51,10 +52,10 @@ function Header() {
       <Link
         to="/"
         className="brand"
-        aria-label="ATE home"
+        aria-label="ATOE home"
         onClick={() => setMenu(false)}
       >
-        <img src="/ate-logo.png" alt="ATE — Asthitva's Title of Existence" />
+        <img src="/ate-logo.png" alt="ATOE — Asthitva's Title of Existence" />
       </Link>
       <button
         className="menu-toggle"
@@ -93,8 +94,8 @@ function Header() {
 function Footer() {
   return (
     <footer className="footer">
-      <Link to="/" className="footer-mark" aria-label="ATE home">
-        <img src="/ate-logo.png" alt="ATE — Asthitva's Title of Existence" />
+      <Link to="/" className="footer-mark" aria-label="ATOE home">
+        <img src="/ate-logo.png" alt="ATOE — Asthitva's Title of Existence" />
       </Link>
       <span>A field guide to India's hospitality culture.</span>
       <span>Made for finding your place.</span>
@@ -132,7 +133,7 @@ function CafeCard({ cafe, index = 0 }: { cafe: Cafe; index?: number }) {
         className="cafe-image"
         aria-label={`Read about ${cafe.name}`}
       >
-        <span className="image-stamp">ATE / FIELD NOTE</span>
+        <span className="image-stamp">ATOE / FIELD NOTE</span>
         <span className="image-number">0{index + 1}</span>
         <ArrowUpRight size={20} />
       </Link>
@@ -254,7 +255,7 @@ function IndiaMap() {
                     fill={colorFor(state)}
                     tabIndex={0}
                     role="button"
-                    aria-label={`${name}, ${cafes.filter((c) => c.stateId === state.id && c.published).length} published cafés`}
+                    aria-label={`${name}, ${cafes.filter((c) => c.stateId === state.id && c.published).length} published hospitalities`}
                     onPointerEnter={() => {
                       if (!touch) setHovered(state.id);
                     }}
@@ -340,7 +341,7 @@ function IndiaMap() {
           </div>
           <h3 id="selected-state-title">{current.name}</h3>
           <p className="preview-count">
-            {count} published {count === 1 ? "café" : "cafés"}
+            {count} published {count === 1 ? "hospitality" : "hospitalities"}
           </p>
           <p className="preview-description">{current.description}</p>
           {cards.length > 0 ? (
@@ -379,8 +380,8 @@ function colorFor(s: StateRecord) {
 }
 function Home() {
   useTitle(
-    "A field guide to India's café culture",
-    "Discover thoughtful cafés across India, one state at a time.",
+    "A field guide to India's hospitality culture",
+    "Discover thoughtful hospitalities across India, one state at a time.",
   );
   return (
     <>
@@ -408,7 +409,7 @@ function Home() {
             <span className="hero-index">01—36 / STATES & TERRITORIES</span>
           </div>
           <div className="hero-sun" aria-hidden="true">
-            ✳
+            <img src="/ate-favicon.png" alt="" />
           </div>
         </section>
         <div id="map">
@@ -433,26 +434,21 @@ function Home() {
 function StatePage() {
   const { stateSlug = "" } = useParams();
   const state = states.find((s) => s.slug === stateSlug);
-  const [search, setSearch] = useState(""),
-    [sort, setSort] = useState("featured"),
-    [city, setCity] = useState("");
+  const [citySearch, setCitySearch] = useState(""),
+    [sort, setSort] = useState("featured");
   useTitle(
     state?.name ?? "State not found",
     state?.description ?? "This state could not be found.",
   );
   if (!state) return <NotFound kind="state" />;
   const all = cafes.filter((c) => c.stateId === state.id && c.published);
-  const cityOptions = [
-    ...new Set(all.map((c) => c.city).filter(Boolean)),
-  ] as string[];
+  const stateCities =
+    cityData.find((group) => group.stateId === state.id)?.cities ?? [];
   const shown = all
     .filter(
       (c) =>
-        (!search ||
-          `${c.name} ${c.description}`
-            .toLowerCase()
-            .includes(search.toLowerCase())) &&
-        (!city || c.city === city),
+        !citySearch ||
+        c.city?.toLowerCase().includes(citySearch.toLowerCase()),
     )
     .sort((a, b) =>
       sort === "name"
@@ -477,7 +473,7 @@ function StatePage() {
           <p>{state.description}</p>
           <div className="state-stat">
             <strong>{all.length.toString().padStart(2, "0")}</strong>
-            <span>PUBLISHED CAFÉS</span>
+            <span>PUBLISHED HOSPITALITIES</span>
           </div>
         </section>
         <section className="listing">
@@ -492,26 +488,20 @@ function StatePage() {
               <label className="search-field">
                 <Search size={16} />
                 <input
-                  aria-label="Search cafés"
-                  placeholder="Search cafés"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  aria-label="Search by city"
+                  placeholder="Search by city"
+                  list="state-city-options"
+                  value={citySearch}
+                  onChange={(e) => setCitySearch(e.target.value)}
                 />
               </label>
-              {cityOptions.length > 0 && (
-                <select
-                  aria-label="Filter by city"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                >
-                  <option value="">Every city</option>
-                  {cityOptions.map((c) => (
-                    <option key={c}>{c}</option>
-                  ))}
-                </select>
-              )}
+              <datalist id="state-city-options">
+                {stateCities.map((cityName) => (
+                  <option key={cityName} value={cityName} />
+                ))}
+              </datalist>
               <select
-                aria-label="Sort cafés"
+                aria-label="Sort hospitalities"
                 value={sort}
                 onChange={(e) => setSort(e.target.value)}
               >
@@ -530,13 +520,13 @@ function StatePage() {
             <div className="empty-state">
               <span className="empty-star">✳</span>
               <h3>
-                {search
-                  ? "No cafés found."
+                {citySearch
+                  ? "No hospitalities found in that city."
                   : "The story here is still unfolding."}
               </h3>
               <p>
-                {search
-                  ? "Try a different name or description."
+                {citySearch
+                  ? "Try another city or clear the search."
                   : "We only publish places after the story and details are ready."}
               </p>
               <Link to="/" className="text-link">
@@ -555,10 +545,10 @@ function CafePage() {
   const cafe = cafes.find((c) => c.slug === cafeSlug && c.published);
   const state = states.find((s) => s.id === cafe?.stateId);
   useTitle(
-    cafe?.name ?? "Café not found",
-    cafe?.description ?? "This café could not be found.",
+    cafe?.name ?? "Hospitality not found",
+    cafe?.description ?? "This hospitality could not be found.",
   );
-  if (!cafe) return <NotFound kind="café" />;
+  if (!cafe) return <NotFound kind="hospitality" />;
   return (
     <>
       <Header />
@@ -607,12 +597,23 @@ function SearchPage() {
   const [q, setQ] = useState(
     new URLSearchParams(useLocation().search).get("q") ?? "",
   );
+  const term = q.trim().toLowerCase();
+  const locationResults = cityData.flatMap((group) =>
+    group.cities
+      .filter((city) => !term || `${city} ${group.state}`.toLowerCase().includes(term))
+      .map((city) => ({
+        city,
+        state: states.find((item) => item.id === group.stateId),
+      })),
+  );
   const found = cafes.filter(
     (c) =>
       c.published &&
-      `${c.name} ${c.description}`.toLowerCase().includes(q.toLowerCase()),
+      `${c.city ?? ""} ${c.name} ${c.description}`
+        .toLowerCase()
+        .includes(term),
   );
-  useTitle("Search", "Search the ATE field guide.");
+  useTitle("Search", "Search ATOE by city or state.");
   return (
     <>
       <Header />
@@ -629,22 +630,40 @@ function SearchPage() {
             <Search />
             <input
               autoFocus
-              placeholder="A café, a feeling, a detail..."
+              placeholder="Search a city or state..."
               value={q}
               onChange={(e) => setQ(e.target.value)}
             />
           </label>
           <p className="results-count">
             {q
-              ? `${found.length} published ${found.length === 1 ? "café" : "cafés"} found`
-              : "Search published café names and stories."}
+              ? `${locationResults.length} city results - ${found.length} published ${found.length === 1 ? "hospitality" : "hospitalities"}`
+              : "Search cities and states to find hospitalities."
+            }
           </p>
           {q && (
-            <div className="cafe-grid">
-              {found.map((c, i) => (
-                <CafeCard key={c.id} cafe={c} index={i} />
-              ))}
-            </div>
+            <>
+              {locationResults.length > 0 && (
+                <div className="location-results">
+                  {locationResults.slice(0, 24).map(({ city, state }) =>
+                    state ? (
+                      <Link key={`${state.id}-${city}`} to={`/india/${state.slug}`}>
+                        <span>{city}</span>
+                        <span>{state.name}</span>
+                        <ArrowRight size={14} />
+                      </Link>
+                    ) : null,
+                  )}
+                </div>
+              )}
+              {found.length > 0 && (
+                <div className="cafe-grid">
+                  {found.map((c, i) => (
+                    <CafeCard key={c.id} cafe={c} index={i} />
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </section>
       </main>
@@ -654,8 +673,8 @@ function SearchPage() {
 }
 function About() {
   useTitle(
-    "About ATE",
-    "How ATE documents cafés and verifies place information.",
+    "About ATOE",
+    "How ATOE documents hospitalities and verifies place information.",
   );
   return (
     <>
@@ -673,8 +692,8 @@ function About() {
           </h1>
           <div className="about-columns">
             <p>
-              ATE — Asthitva's Title of Existence — is an editorial field guide
-              to India's café culture. The map makes place the beginning of the
+              ATOE — Asthitva's Title of Existence — is an editorial field guide
+              to India's hospitality culture. The map makes place the beginning of the
               story.
             </p>
             <p>
@@ -693,7 +712,7 @@ function About() {
             </p>
             <span>CONTENT MODE</span>
             <p>
-              Frontend catalogue — published café records are typed in the
+              Frontend catalogue — published hospitality records are typed in the
               application source. No database or remote content service is
               required.
             </p>
@@ -716,7 +735,7 @@ function NotFound({ kind }: { kind: string }) {
           <br />
           found that place<span>.</span>
         </h1>
-        <p>Try another state or café from the guide.</p>
+        <p>Try another state or hospitality from the guide.</p>
         <Link to="/" className="text-link">
           RETURN TO THE MAP <ArrowRight size={15} />
         </Link>
