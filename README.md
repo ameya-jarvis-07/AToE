@@ -50,9 +50,12 @@ unpublished. The Chug and Farro are not hospitality records.
 - `/about` — editorial and data approach
 
 The city reference dataset is stored in
-[src/data/cities.json](./src/data/cities.json). It is frontend-only and is
-used for city/state discovery and state-page city suggestions. A hospitality
-record is not assigned to a city until that location is supplied and verified.
+[src/data/cities.json](./src/data/cities.json). It is a flat, frontend-only
+catalogue of city and municipality records used for city/state discovery and
+state-page city suggestions. Each record also has a `majorCity` display hub so
+nearby municipalities can be grouped without losing their source identity.
+A hospitality record is not assigned to a city until that location is supplied
+and verified.
 
 The editorial collection section has been removed. The site now presents
 the map, state directories, and individual hospitality profiles directly.

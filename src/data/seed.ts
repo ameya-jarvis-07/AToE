@@ -88,7 +88,7 @@ export type Cafe = {
   ambienceTags: string[];
   specialties: string[];
   priceRange: string | null;
-  featured: boolean;
+  pick: "sv" | "editor" | null;
   published: boolean;
   verificationStatus: "draft" | "needs_verification" | "verified";
   sourceNotes: string;
@@ -101,13 +101,13 @@ export let cafes: Cafe[] = [
     stateId: "IN-MH",
     name: "Matra Cafe",
     slug: "matra-cafe",
-    city: null,
+    city: "Nagpur",
     description:
       "A personal favourite of SV. Calming atmosphere with a subtle connection to nature; a place to slow down and enjoy stillness.",
     ambienceTags: ["Calm", "Nature"],
     specialties: [],
     priceRange: null,
-    featured: true,
+    pick: "sv",
     published: true,
     verificationStatus: "needs_verification",
     sourceNotes:
@@ -120,13 +120,13 @@ export let cafes: Cafe[] = [
     stateId: "IN-MH",
     name: "The Jacobs",
     slug: "the-jacobs",
-    city: null,
+    city: "Nagpur",
     description:
       "A distinctly Goan vibe focused on friendship, lingering conversations, shared laughter, and time with friends.",
     ambienceTags: ["Social", "Goan vibe"],
     specialties: [],
     priceRange: null,
-    featured: true,
+    pick: "editor",
     published: true,
     verificationStatus: "needs_verification",
     sourceNotes:
@@ -139,13 +139,13 @@ export let cafes: Cafe[] = [
     stateId: "IN-MH",
     name: "Rachel's Cafe",
     slug: "rachels-cafe",
-    city: null,
+    city: "Nagpur",
     description:
       "Designed for people on the move; a convenient place for a quick bite or a short pause between commitments.",
     ambienceTags: ["On the go"],
     specialties: [],
     priceRange: null,
-    featured: true,
+    pick: "editor",
     published: true,
     verificationStatus: "needs_verification",
     sourceNotes:
@@ -164,7 +164,7 @@ export let cafes: Cafe[] = [
     ambienceTags: [],
     specialties: [],
     priceRange: null,
-    featured: false,
+    pick: null,
     published: false,
     verificationStatus: "draft",
     sourceNotes: "Keep unpublished until editorial character is confirmed.",

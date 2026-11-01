@@ -8,7 +8,7 @@ import {
   useNavigate,
   useParams,
 } from "react-router-dom";
-import { motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   ArrowDownRight,
   ArrowLeft,
@@ -20,6 +20,18 @@ import { cafes, states, type Cafe, type StateRecord } from "./data/seed";
 import cityData from "./data/cities.json";
 import { loadMapFeatures, type MapPath } from "./lib/map";
 import "./style.css";
+
+type CityRecord = {
+  id: string;
+  stateId: string;
+  name: string;
+  slug: string;
+  majorCity: string;
+};
+
+function normalizeCityName(name: string) {
+  return name.replace(/\s*\([^)]*\)/g, "").trim().toLowerCase();
+}
 
 function useTitle(title: string, description: string) {
   useEffect(() => {
@@ -139,7 +151,9 @@ function CafeCard({ cafe, index = 0 }: { cafe: Cafe; index?: number }) {
       </Link>
       <div className="card-meta">
         <span>{cafe.city ?? "Location to be confirmed"}</span>
-        {cafe.featured && <span>EDITOR'S PICK</span>}
+        {cafe.pick && (
+          <span>{cafe.pick === "sv" ? "SV'S PICK" : "EDITOR'S PICK"}</span>
+        )}
       </div>
       <h3>
         <Link to={`/cafe/${cafe.slug}`}>{cafe.name}</Link>
@@ -158,6 +172,7 @@ function IndiaMap() {
     [mapError, setMapError] = useState(""),
     [hovered, setHovered] = useState<string | null>(null),
     [active, setActive] = useState<string | null>(null),
+    [activeViewBox, setActiveViewBox] = useState<string | null>(null),
     [previewSide, setPreviewSide] = useState<"left" | "right">("right"),
     [query, setQuery] = useState(""),
     [touch, setTouch] = useState(false);
@@ -180,21 +195,43 @@ function IndiaMap() {
   const current = states.find((s) => s.id === (active ?? hovered));
   const cards = current
     ? cafes
-        .filter((c) => c.stateId === current.id && c.published && c.featured)
+        .filter((c) => c.stateId === current.id && c.published && c.pick)
         .slice(0, 3)
     : [];
   const count = current
     ? cafes.filter((c) => c.stateId === current.id && c.published).length
     : 0;
+  const activeFeature = active
+    ? features.find((feature) => feature.id === active)
+    : null;
+  const activeCities = active
+    ? Array.from(
+        new Map(
+          cityData
+            .filter((city) => city.stateId === active)
+            .map((city) => [city.majorCity, city]),
+        ).values(),
+      ).sort((a, b) => a.majorCity.localeCompare(b.majorCity))
+    : [];
+  const resetMap = () => {
+    setActive(null);
+    setActiveViewBox(null);
+    setHovered(null);
+  };
   const activate = (s: StateRecord, path: SVGPathElement) => {
+    const box = path.getBBox();
     setPreviewSide(
-      path.getBBox().x + path.getBBox().width / 2 > 500 ? "left" : "right",
+      box.x + box.width / 2 > 500 ? "left" : "right",
     );
     if (active !== s.id) {
       setActive(s.id);
+      setActiveViewBox(
+        `${box.x - box.width * 0.08} ${box.y - box.height * 0.08} ${
+          box.width * 1.16
+        } ${box.height * 1.16}`,
+      );
       return;
     }
-    navigate(`/india/${s.slug}`);
   };
   return (
     <section className="map-section">
@@ -231,17 +268,77 @@ function IndiaMap() {
       </div>
       <div className="map-layout">
         <div
-          className="map-canvas"
+          className={`map-canvas${active ? " state-map-open" : ""}`}
+          onClick={(event) => {
+            if (event.target === event.currentTarget) resetMap();
+          }}
           onPointerLeave={() => setHovered(null)}
           onPointerEnter={(e) => {
             if (e.pointerType === "touch") setTouch(true);
           }}
         >
-          {features.length ? (
-            <svg
+          <AnimatePresence mode="wait" initial={false}>
+          {active && activeFeature && activeViewBox ? (
+            <motion.div
+              key={`state-${active}`}
+              className="state-map-view"
+              initial={reduced ? false : { opacity: 0, scale: 0.94 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={reduced ? undefined : { opacity: 0, scale: 1.04 }}
+              transition={{ duration: reduced ? 0 : 0.45, ease: [0.22, 1, 0.36, 1] }}
+              onClick={(event) => {
+                if (event.target === event.currentTarget) resetMap();
+              }}
+            >
+              <div className="state-map-heading">
+                <button
+                  className="map-reset"
+                  onClick={resetMap}
+                >
+                  <ArrowLeft size={14} /> ALL STATES
+                </button>
+                <span className="tiny-label">
+                  {current?.name.toUpperCase()} / SELECT A CITY
+                </span>
+              </div>
+              <svg
+                viewBox={activeViewBox}
+                role="img"
+                aria-label={`${current?.name} map`}
+              >
+                <motion.path
+                  d={activeFeature.d}
+                  className="map-region selected"
+                  fill={current ? colorFor(current) : "var(--blue)"}
+                  initial={reduced ? false : { opacity: 0.65 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: reduced ? 0 : 0.35 }}
+                />
+              </svg>
+              <div className="state-city-list">
+                {activeCities.map((city) => (
+                  <Link
+                    key={city.id}
+                    to={`/india/${current?.slug}?city=${encodeURIComponent(
+                      city.majorCity,
+                    )}`}
+                  >
+                    <span>{city.majorCity}</span>
+                    <ArrowRight size={14} />
+                  </Link>
+                ))}
+              </div>
+            </motion.div>
+          ) : features.length ? (
+            <motion.svg
+              key="india"
               viewBox="0 0 1000 1000"
               role="group"
               aria-label="Interactive map of India"
+              initial={reduced ? false : { opacity: 0.8, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={reduced ? undefined : { opacity: 0, scale: 0.96 }}
+              transition={{ duration: reduced ? 0 : 0.35, ease: "easeOut" }}
             >
               {features.map(({ d, id, name }) => {
                 const state = states.find((s) => s.id === id);
@@ -280,7 +377,7 @@ function IndiaMap() {
                   />
                 );
               })}
-            </svg>
+            </motion.svg>
           ) : (
             <div className={`map-missing${mapError ? " has-error" : ""}`}>
               <div className="map-skeleton" aria-hidden="true">
@@ -301,6 +398,7 @@ function IndiaMap() {
               </Link>
             </div>
           )}
+          </AnimatePresence>
         </div>
         <aside className="map-side-note">
           <p>
@@ -318,7 +416,7 @@ function IndiaMap() {
           </p>
         </aside>
       </div>
-      {current && (
+      {current && !active && (
         <motion.section
           className={`state-preview side-${previewSide}`}
           aria-live="polite"
@@ -434,7 +532,9 @@ function Home() {
 function StatePage() {
   const { stateSlug = "" } = useParams();
   const state = states.find((s) => s.slug === stateSlug);
-  const [citySearch, setCitySearch] = useState(""),
+  const location = useLocation();
+  const initialCity = new URLSearchParams(location.search).get("city") ?? "";
+  const [citySearch, setCitySearch] = useState(initialCity),
     [sort, setSort] = useState("featured");
   useTitle(
     state?.name ?? "State not found",
@@ -442,18 +542,24 @@ function StatePage() {
   );
   if (!state) return <NotFound kind="state" />;
   const all = cafes.filter((c) => c.stateId === state.id && c.published);
-  const stateCities =
-    cityData.find((group) => group.stateId === state.id)?.cities ?? [];
+  const stateCities = Array.from(
+    new Map(
+      cityData
+        .filter((city) => city.stateId === state.id)
+        .map((city) => [city.majorCity, city]),
+    ).values(),
+  ).sort((a, b) => a.majorCity.localeCompare(b.majorCity));
   const shown = all
     .filter(
       (c) =>
         !citySearch ||
-        c.city?.toLowerCase().includes(citySearch.toLowerCase()),
+        (c.city &&
+          normalizeCityName(c.city).includes(normalizeCityName(citySearch))),
     )
     .sort((a, b) =>
       sort === "name"
         ? a.name.localeCompare(b.name)
-        : Number(b.featured) - Number(a.featured),
+        : Number(Boolean(b.pick)) - Number(Boolean(a.pick)),
     );
   return (
     <>
@@ -496,8 +602,8 @@ function StatePage() {
                 />
               </label>
               <datalist id="state-city-options">
-                {stateCities.map((cityName) => (
-                  <option key={cityName} value={cityName} />
+                {stateCities.map((city) => (
+                  <option key={city.id} value={city.majorCity} />
                 ))}
               </datalist>
               <select
@@ -598,13 +704,18 @@ function SearchPage() {
     new URLSearchParams(useLocation().search).get("q") ?? "",
   );
   const term = q.trim().toLowerCase();
-  const locationResults = cityData.flatMap((group) =>
-    group.cities
-      .filter((city) => !term || `${city} ${group.state}`.toLowerCase().includes(term))
-      .map((city) => ({
-        city,
-        state: states.find((item) => item.id === group.stateId),
-      })),
+  const locationResults = Array.from(
+    new Map(
+      cityData
+        .filter((city) => !term || city.majorCity.toLowerCase().includes(term))
+        .map((city: CityRecord) => [
+          `${city.stateId}-${city.majorCity}`,
+          {
+            city: city.majorCity,
+            state: states.find((item) => item.id === city.stateId),
+          },
+        ]),
+    ).values(),
   );
   const found = cafes.filter(
     (c) =>
