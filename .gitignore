@@ -1,5 +1,19 @@
 node_modules
 dist
+tsconfig.tsbuildinfo
 .env
 .env.*
 !.env.example
+
+# AI-agent and workflow tooling
+.agent/
+.agents/
+.gemini/
+.gsd/
+.opencode/
+adapters/
+GSD-STYLE.md
+PROJECT_RULES.md
+model_capabilities.yaml
+opencode.jsonc
+VERSION

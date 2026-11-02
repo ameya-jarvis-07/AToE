@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Link,
   NavLink,
@@ -18,7 +18,9 @@ import {
 } from "lucide-react";
 import { cafes, states, type Cafe, type StateRecord } from "./data/seed";
 import cityData from "./data/cities.json";
+import citiesByDistrict from "./data/cities-by-district.json";
 import { loadMapFeatures, type MapPath } from "./lib/map";
+import { loadDistricts, type DistrictMapFeature } from "./lib/districts";
 import "./style.css";
 
 type CityRecord = {
@@ -31,6 +33,43 @@ type CityRecord = {
 
 function normalizeCityName(name: string) {
   return name.replace(/\s*\([^)]*\)/g, "").trim().toLowerCase();
+}
+
+function getInteriorAnchor(path: SVGPathElement, bounds: DOMRect) {
+  const center = new DOMPoint(
+    bounds.x + bounds.width / 2,
+    bounds.y + bounds.height / 2,
+  );
+  if (path.isPointInFill(center)) return center;
+
+  const length = path.getTotalLength();
+  const outline = Array.from({ length: 128 }, (_, index) =>
+    path.getPointAtLength((length * index) / 128),
+  );
+  let bestPoint: DOMPoint | null = null;
+  let bestClearance = -1;
+  const steps = 48;
+
+  for (let row = 1; row < steps; row += 1) {
+    for (let column = 1; column < steps; column += 1) {
+      const point = new DOMPoint(
+        bounds.x + (bounds.width * column) / steps,
+        bounds.y + (bounds.height * row) / steps,
+      );
+      if (!path.isPointInFill(point)) continue;
+      const clearance = Math.min(
+        ...outline.map(
+          (edge) => (edge.x - point.x) ** 2 + (edge.y - point.y) ** 2,
+        ),
+      );
+      if (clearance > bestClearance) {
+        bestPoint = point;
+        bestClearance = clearance;
+      }
+    }
+  }
+
+  return bestPoint ?? path.getPointAtLength(length / 2);
 }
 
 function useTitle(title: string, description: string) {
@@ -116,14 +155,26 @@ function Footer() {
 }
 function BackToTop() {
   const [visible, setVisible] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
-    const update = () => setVisible(window.scrollY > 420);
+    const update = () => {
+      setVisible(window.scrollY > 420);
+      const footer = document.querySelector(".footer");
+      const footerTop = footer?.getBoundingClientRect().top ?? Infinity;
+      const bottom = Math.max(24, window.innerHeight - footerTop + 16);
+      if (buttonRef.current) buttonRef.current.style.bottom = `${bottom}px`;
+    };
     update();
     window.addEventListener("scroll", update, { passive: true });
-    return () => window.removeEventListener("scroll", update);
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
   }, []);
   return (
     <button
+      ref={buttonRef}
       className={`back-to-top${visible ? " visible" : ""}`}
       aria-label="Back to top"
       onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
@@ -172,12 +223,24 @@ function IndiaMap() {
     [mapError, setMapError] = useState(""),
     [hovered, setHovered] = useState<string | null>(null),
     [active, setActive] = useState<string | null>(null),
+    [revealingStateId, setRevealingStateId] = useState<string | null>(null),
+    [transitionPhase, setTransitionPhase] = useState<
+      "idle" | "clearing" | "zooming" | "returning" | "revealing"
+    >("idle"),
     [activeViewBox, setActiveViewBox] = useState<string | null>(null),
+    [mapZoomOrigin, setMapZoomOrigin] = useState("50% 50%"),
+    [stateTransitionOrigin, setStateTransitionOrigin] = useState("50% 50%"),
+    [mapZoomScale, setMapZoomScale] = useState(2.4),
+    [districts, setDistricts] = useState<DistrictMapFeature[]>([]),
+    [districtError, setDistrictError] = useState(""),
+    [pendingStateId, setPendingStateId] = useState<string | null>(null),
     [previewSide, setPreviewSide] = useState<"left" | "right">("right"),
     [query, setQuery] = useState(""),
     [touch, setTouch] = useState(false);
-  const navigate = useNavigate();
+  const mapCanvasRef = useRef<HTMLDivElement | null>(null);
+  const mapSvgRef = useRef<SVGSVGElement | null>(null);
   const reduced = useReducedMotion();
+  const navigate = useNavigate();
   useEffect(() => {
     loadMapFeatures()
       .then(setFeatures)
@@ -189,6 +252,53 @@ function IndiaMap() {
         ),
       );
   }, []);
+  useEffect(() => {
+    if (!active || districts.length) return;
+    let cancelled = false;
+    let transitionTimer: number | undefined;
+    loadDistricts(active)
+      .then((items) => {
+        if (!cancelled) {
+          transitionTimer = window.setTimeout(() => {
+            setDistricts(items);
+          }, reduced ? 0 : 800);
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setDistrictError(
+            error instanceof Error
+              ? error.message
+              : "District boundaries could not be loaded.",
+          );
+        }
+      });
+    return () => {
+      cancelled = true;
+      if (transitionTimer !== undefined) {
+        window.clearTimeout(transitionTimer);
+      }
+    };
+  }, [active, districts.length, reduced]);
+  useEffect(() => {
+    if (!active || transitionPhase !== "clearing") return;
+    const timer = window.setTimeout(
+      () => setTransitionPhase("zooming"),
+      reduced ? 0 : 300,
+    );
+    return () => window.clearTimeout(timer);
+  }, [active, reduced, transitionPhase]);
+  useEffect(() => {
+    if (active || transitionPhase !== "revealing") return;
+    const timer = window.setTimeout(
+      () => {
+        setTransitionPhase("idle");
+        setRevealingStateId(null);
+      },
+      reduced ? 0 : 450,
+    );
+    return () => window.clearTimeout(timer);
+  }, [active, reduced, transitionPhase]);
   const filtered = states.filter((s) =>
     s.name.toLowerCase().includes(query.toLowerCase()),
   );
@@ -204,27 +314,68 @@ function IndiaMap() {
   const activeFeature = active
     ? features.find((feature) => feature.id === active)
     : null;
-  const activeCities = active
-    ? Array.from(
-        new Map(
-          cityData
-            .filter((city) => city.stateId === active)
-            .map((city) => [city.majorCity, city]),
-        ).values(),
-      ).sort((a, b) => a.majorCity.localeCompare(b.majorCity))
-    : [];
   const resetMap = () => {
-    setActive(null);
-    setActiveViewBox(null);
     setHovered(null);
+    if (active && transitionPhase === "zooming") {
+      setTransitionPhase("returning");
+      return;
+    }
+    setActive(null);
+    setRevealingStateId(null);
+    setTransitionPhase("idle");
+    setActiveViewBox(null);
+  };
+  const activateDistrict = (district: DistrictMapFeature) => {
+    if (!current) return;
+    navigate(
+      `/india/${current.slug}?district=${encodeURIComponent(district.id)}&districtName=${encodeURIComponent(district.name)}`,
+    );
   };
   const activate = (s: StateRecord, path: SVGPathElement) => {
     const box = path.getBBox();
+    const anchor = getInteriorAnchor(path, box);
+    const viewBox = path.ownerSVGElement?.viewBox.baseVal;
+    const canvas = mapCanvasRef.current;
+    const mapSvg = path.ownerSVGElement;
+    const mapRect = mapSvg?.getBoundingClientRect();
+    const canvasRect = canvas?.getBoundingClientRect();
+    const cropWidth = box.width * 1.16;
+    const cropHeight = box.height * 1.16;
+    if (viewBox?.width && viewBox.height && mapRect && canvasRect) {
+      setMapZoomOrigin(
+        `${((anchor.x - viewBox.x) / viewBox.width) * 100}% ${((anchor.y - viewBox.y) / viewBox.height) * 100}%`,
+      );
+      const sourceScale = Math.min(
+        mapRect.width / viewBox.width,
+        mapRect.height / viewBox.height,
+      );
+      const targetHeight = Math.max(
+        360,
+        Math.min(window.innerHeight * 0.68, 680),
+      );
+      const targetScale = Math.min(
+        canvasRect.width / cropWidth,
+        targetHeight / cropHeight,
+      );
+      setMapZoomScale(Math.max(1, targetScale / sourceScale));
+      const matrix = path.getScreenCTM();
+      if (matrix) {
+        const screenAnchor = new DOMPoint(anchor.x, anchor.y).matrixTransform(
+          matrix,
+        );
+        setStateTransitionOrigin(
+          `${((screenAnchor.x - canvasRect.left) / canvasRect.width) * 100}% ${((screenAnchor.y - canvasRect.top) / canvasRect.height) * 100}%`,
+        );
+      }
+    }
     setPreviewSide(
-      box.x + box.width / 2 > 500 ? "left" : "right",
+      anchor.x > 500 ? "left" : "right",
     );
     if (active !== s.id) {
       setActive(s.id);
+      setTransitionPhase("clearing");
+      setDistricts([]);
+      setDistrictError("");
       setActiveViewBox(
         `${box.x - box.width * 0.08} ${box.y - box.height * 0.08} ${
           box.width * 1.16
@@ -233,6 +384,16 @@ function IndiaMap() {
       return;
     }
   };
+  useEffect(() => {
+    if (!pendingStateId || active) return;
+    const state = states.find((item) => item.id === pendingStateId);
+    const path = mapSvgRef.current?.querySelector<SVGPathElement>(
+      `[data-state-id="${pendingStateId}"]`,
+    );
+    if (!state || !path) return;
+    setPendingStateId(null);
+    activate(state, path);
+  }, [active, features, pendingStateId]);
   return (
     <section className="map-section">
       <div className="map-instruction">
@@ -258,7 +419,24 @@ function IndiaMap() {
         {query && (
           <div className="state-results">
             {filtered.slice(0, 6).map((s) => (
-              <button key={s.id} onClick={() => navigate(`/india/${s.slug}`)}>
+              <button
+                key={s.id}
+                onClick={() => {
+                  const path = mapSvgRef.current?.querySelector<SVGPathElement>(
+                    `[data-state-id="${s.id}"]`,
+                  );
+                  if (path) {
+                    activate(s, path);
+                    setHovered(null);
+                    setQuery("");
+                    return;
+                  }
+                  setPendingStateId(s.id);
+                  if (active) resetMap();
+                  setHovered(null);
+                  setQuery("");
+                }}
+              >
                 {s.name}
                 <ArrowRight size={14} />
               </button>
@@ -268,6 +446,7 @@ function IndiaMap() {
       </div>
       <div className="map-layout">
         <div
+          ref={mapCanvasRef}
           className={`map-canvas${active ? " state-map-open" : ""}`}
           onClick={(event) => {
             if (event.target === event.currentTarget) resetMap();
@@ -277,15 +456,41 @@ function IndiaMap() {
             if (e.pointerType === "touch") setTouch(true);
           }}
         >
-          <AnimatePresence mode="wait" initial={false}>
-          {active && activeFeature && activeViewBox ? (
+          <AnimatePresence
+            mode="sync"
+            initial={false}
+            onExitComplete={() => {
+              if (transitionPhase !== "returning") return;
+              setRevealingStateId(active);
+              setActive(null);
+              setActiveViewBox(null);
+              setTransitionPhase("revealing");
+            }}
+          >
+          {active && activeFeature && transitionPhase === "zooming" ? (
             <motion.div
               key={`state-${active}`}
               className="state-map-view"
-              initial={reduced ? false : { opacity: 0, scale: 0.94 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={reduced ? undefined : { opacity: 0, scale: 1.04 }}
-              transition={{ duration: reduced ? 0 : 0.45, ease: [0.22, 1, 0.36, 1] }}
+              initial={reduced ? false : { scale: 1 / mapZoomScale }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={
+                reduced
+                  ? undefined
+                  : { scale: 1 / mapZoomScale, opacity: 1 }
+              }
+              transition={{
+                duration: reduced ? 0 : 0.8,
+                ease: [0.65, 0, 0.35, 1],
+              }}
+              onAnimationComplete={() => {
+                if (mapCanvasRef.current?.classList.contains("state-map-open")) {
+                  mapCanvasRef.current.scrollIntoView({
+                    block: "start",
+                    behavior: "smooth",
+                  });
+                }
+              }}
+              style={{ transformOrigin: stateTransitionOrigin }}
               onClick={(event) => {
                 if (event.target === event.currentTarget) resetMap();
               }}
@@ -298,59 +503,133 @@ function IndiaMap() {
                   <ArrowLeft size={14} /> ALL STATES
                 </button>
                 <span className="tiny-label">
-                  {current?.name.toUpperCase()} / SELECT A CITY
+                  {current?.name.toUpperCase()} / SELECT A DISTRICT
                 </span>
               </div>
               <svg
-                viewBox={activeViewBox}
-                role="img"
+                viewBox={
+                  districts.length
+                    ? "0 0 1000 800"
+                    : activeViewBox ?? "0 0 1000 1000"
+                }
+                role={districts.length ? "group" : "img"}
                 aria-label={`${current?.name} map`}
               >
                 <motion.path
                   d={activeFeature.d}
-                  className="map-region selected"
                   fill={current ? colorFor(current) : "var(--blue)"}
-                  initial={reduced ? false : { opacity: 0.65 }}
-                  animate={{ opacity: 1 }}
+                  animate={{ opacity: districts.length ? 0 : 1 }}
                   transition={{ duration: reduced ? 0 : 0.35 }}
                 />
-              </svg>
-              <div className="state-city-list">
-                {activeCities.map((city) => (
-                  <Link
-                    key={city.id}
-                    to={`/india/${current?.slug}?city=${encodeURIComponent(
-                      city.majorCity,
-                    )}`}
+                {districts.length ? (
+                  <motion.g
+                    className="district-map-regions"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: reduced ? 0 : 0.45 }}
                   >
-                    <span>{city.majorCity}</span>
-                    <ArrowRight size={14} />
-                  </Link>
-                ))}
-              </div>
+                    {districts.map((district, index) => {
+                      return (
+                        <g key={district.id}>
+                          <motion.path
+                            d={district.d}
+                            className="district-region"
+                            fill={[
+                              "#2549ff",
+                              "#075e38",
+                              "#f45112",
+                              "#c84c34",
+                              "#e4b839",
+                              "#39806b",
+                              "#708be7",
+                              "#4b2d78",
+                            ][index % 8]}
+                            tabIndex={0}
+                            role="button"
+                            aria-label={`${district.name} district`}
+                            onClick={() => activateDistrict(district)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                activateDistrict(district);
+                              }
+                            }}
+                            initial={false}
+                          >
+                            <title>{district.name}</title>
+                          </motion.path>
+                          <text
+                            className="district-map-label"
+                            x={district.labelX}
+                            y={district.labelY}
+                            aria-hidden="true"
+                          >
+                            {district.name}
+                          </text>
+                        </g>
+                      );
+                    })}
+                  </motion.g>
+                ) : (
+                  <>
+                    {districtError ? (
+                      <text className="district-map-loading" x="500" y="500">
+                        {districtError}
+                      </text>
+                    ) : null}
+                  </>
+                )}
+              </svg>
+              <p className="map-source district-source-credit">
+                District boundaries: geoBoundaries India ADM2 · ODbL 1.0.
+                City directory: India Local Government Directory · Government
+                Open Data License – India.
+              </p>
             </motion.div>
-          ) : features.length ? (
+          ) : active && transitionPhase === "returning" ? null : features.length ? (
             <motion.svg
               key="india"
               viewBox="0 0 1000 1000"
               role="group"
               aria-label="Interactive map of India"
-              initial={reduced ? false : { opacity: 0.8, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={reduced ? undefined : { opacity: 0, scale: 0.96 }}
-              transition={{ duration: reduced ? 0 : 0.35, ease: "easeOut" }}
+              ref={mapSvgRef}
+              initial={
+                reduced
+                  ? false
+                  : { scale: mapZoomScale }
+              }
+              animate={{ scale: 1 }}
+              exit={reduced ? undefined : { scale: mapZoomScale }}
+              transition={{
+                duration: reduced ? 0 : 0.8,
+                ease: [0.65, 0, 0.35, 1],
+              }}
+              style={{ transformOrigin: mapZoomOrigin }}
             >
               {features.map(({ d, id, name }) => {
                 const state = states.find((s) => s.id === id);
                 if (!state) return null;
-                const selected = (active ?? hovered) === state.id;
+                const selected =
+                  (active ??
+                    (transitionPhase === "revealing"
+                      ? revealingStateId
+                      : null) ??
+                    hovered) === state.id;
                 return (
                   <motion.path
                     key={state.id}
                     d={d}
+                    data-state-id={state.id}
                     className={`map-region ${selected ? "selected" : ""}`}
                     fill={colorFor(state)}
-                    tabIndex={0}
+                    initial={
+                      !reduced &&
+                      transitionPhase === "revealing" &&
+                      !selected
+                        ? { opacity: 0 }
+                        : false
+                    }
+                    tabIndex={active && !selected ? -1 : 0}
                     role="button"
                     aria-label={`${name}, ${cafes.filter((c) => c.stateId === state.id && c.published).length} published hospitalities`}
                     onPointerEnter={() => {
@@ -365,14 +644,29 @@ function IndiaMap() {
                         activate(state, e.currentTarget);
                       }
                       if (e.key === "Escape") {
-                        setActive(null);
-                        setHovered(null);
+                        resetMap();
                       }
                     }}
-                    animate={{ scale: selected && !reduced ? 1.025 : 1 }}
+                    animate={{
+                      scale:
+                        selected &&
+                        !active &&
+                        transitionPhase === "idle" &&
+                        !reduced
+                          ? 1.025
+                          : 1,
+                      opacity: active && !selected ? 0 : 1,
+                    }}
+                    transition={{
+                      duration: reduced ? 0 : 0.35,
+                      delay:
+                        transitionPhase === "revealing" && !selected ? 0.08 : 0,
+                      ease: [0.65, 0, 0.35, 1],
+                    }}
                     style={{
                       transformBox: "fill-box",
                       transformOrigin: "center",
+                      pointerEvents: active && !selected ? "none" : "auto",
                     }}
                   />
                 );
@@ -412,7 +706,7 @@ function IndiaMap() {
             08 UNION TERRITORIES
           </span>
           <p className="map-source">
-            Boundary map: public/in.svg · SimpleMaps attribution in asset
+            India state boundaries: public/in.svg · SimpleMaps attribution in asset
           </p>
         </aside>
       </div>
@@ -533,9 +827,13 @@ function StatePage() {
   const { stateSlug = "" } = useParams();
   const state = states.find((s) => s.slug === stateSlug);
   const location = useLocation();
-  const initialCity = new URLSearchParams(location.search).get("city") ?? "";
-  const [citySearch, setCitySearch] = useState(initialCity),
+  const searchParams = new URLSearchParams(location.search);
+  const routeCity = searchParams.get("city") ?? "";
+  const routeDistrict = searchParams.get("district") ?? "";
+  const routeDistrictName = searchParams.get("districtName") ?? "";
+  const [citySearch, setCitySearch] = useState(routeCity),
     [sort, setSort] = useState("featured");
+  useEffect(() => setCitySearch(routeCity), [routeCity]);
   useTitle(
     state?.name ?? "State not found",
     state?.description ?? "This state could not be found.",
@@ -549,12 +847,37 @@ function StatePage() {
         .map((city) => [city.majorCity, city]),
     ).values(),
   ).sort((a, b) => a.majorCity.localeCompare(b.majorCity));
+  const districtCityIds = routeDistrict
+    ? new Set(
+        (citiesByDistrict as Record<string, string[]>)[routeDistrict] ?? [],
+      )
+    : null;
+  const districtCityNames = districtCityIds
+    ? new Set(
+        cityData
+          .filter((city) => districtCityIds.has(city.id))
+          .map((city) => normalizeCityName(city.majorCity)),
+      )
+    : null;
   const shown = all
     .filter(
-      (c) =>
-        !citySearch ||
-        (c.city &&
-          normalizeCityName(c.city).includes(normalizeCityName(citySearch))),
+      (c) => {
+        if (
+          districtCityNames &&
+          (!c.city || !districtCityNames.has(normalizeCityName(c.city)))
+        ) {
+          return false;
+        }
+        if (!citySearch) return true;
+        if (!c.city) return false;
+        const cafeCity = normalizeCityName(c.city);
+        const requestedCity = normalizeCityName(citySearch);
+        const cityWasSelected =
+          routeCity && requestedCity === normalizeCityName(routeCity);
+        return cityWasSelected
+          ? cafeCity === requestedCity
+          : cafeCity.includes(requestedCity);
+      },
     )
     .sort((a, b) =>
       sort === "name"
@@ -578,14 +901,30 @@ function StatePage() {
           </h1>
           <p>{state.description}</p>
           <div className="state-stat">
-            <strong>{all.length.toString().padStart(2, "0")}</strong>
-            <span>PUBLISHED HOSPITALITIES</span>
+            <strong>
+              {(routeDistrict || citySearch ? shown.length : all.length)
+                .toString()
+                .padStart(2, "0")}
+            </strong>
+            <span>
+              {routeDistrict
+                ? `PUBLISHED IN ${routeDistrictName.toUpperCase()}`
+                : citySearch
+                ? `PUBLISHED IN ${citySearch.toUpperCase()}`
+                : "PUBLISHED HOSPITALITIES"}
+            </span>
           </div>
         </section>
         <section className="listing">
           <div className="listing-head">
             <div>
-              <span className="tiny-label">THE DIRECTORY</span>
+              <span className="tiny-label">
+                {routeDistrict
+                  ? `THE DIRECTORY / ${routeDistrictName || "DISTRICT"}`
+                  : citySearch
+                    ? `THE DIRECTORY / ${citySearch}`
+                    : "THE DIRECTORY"}
+              </span>
               <h2>
                 Find your <em>kind of place.</em>
               </h2>
@@ -626,12 +965,16 @@ function StatePage() {
             <div className="empty-state">
               <span className="empty-star">✳</span>
               <h3>
-                {citySearch
+                {routeDistrict
+                  ? `No hospitalities found in ${routeDistrictName || "this district"}.`
+                  : citySearch
                   ? "No hospitalities found in that city."
                   : "The story here is still unfolding."}
               </h3>
               <p>
-                {citySearch
+                {routeDistrict
+                  ? "We only publish places after the story and details are ready."
+                  : citySearch
                   ? "Try another city or clear the search."
                   : "We only publish places after the story and details are ready."}
               </p>
@@ -817,9 +1160,9 @@ function About() {
           <div className="about-source">
             <span>MAP SOURCE</span>
             <p>
-              India state boundaries are stored locally as a 36-feature GeoJSON
-              asset. Its upstream provenance and license verification
-              requirement are documented in the repository README.
+              India states use the selectable SVG map. State drilldowns use
+              transparent district geometry from geoBoundaries, with source
+              and license notes alongside the generated boundary assets.
             </p>
             <span>CONTENT MODE</span>
             <p>
