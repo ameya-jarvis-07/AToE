@@ -801,7 +801,7 @@ function Home() {
             <span className="hero-index">01—36 / STATES & TERRITORIES</span>
           </div>
           <div className="hero-sun" aria-hidden="true">
-            <img src="/ate-hero.png" alt="" />
+            <img src="/foottoe.png" alt="" />
           </div>
         </section>
         <div id="map">
