@@ -9,6 +9,7 @@ import {
   useParams,
 } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import Lenis from "lenis";
 import {
   ArrowDownRight,
   ArrowLeft,
@@ -998,6 +999,9 @@ function CafePage() {
     cafe?.description ?? "This hospitality could not be found.",
   );
   if (!cafe) return <NotFound kind="hospitality" />;
+  if (cafe.slug === "the-jacobs") {
+    return <JacobsCafePage cafe={cafe} state={state} />;
+  }
   return (
     <>
       <Header />
@@ -1042,6 +1046,210 @@ function CafePage() {
     </>
   );
 }
+
+function JacobsCafePage({
+  cafe,
+  state,
+}: {
+  cafe: Cafe;
+  state: StateRecord | undefined;
+}) {
+  const sceneRef = useRef<HTMLElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [videoReady, setVideoReady] = useState(false);
+
+  useEffect(() => {
+    const scene = sceneRef.current;
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
+    if (!scene || !canvas || !video) return;
+
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    let frameRequest = 0;
+    let renderRequest = 0;
+    let duration = 0;
+    let targetTime = 0;
+
+    const resizeCanvas = () => {
+      const ratio = window.devicePixelRatio || 1;
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      canvas.width = Math.max(1, Math.round(width * ratio));
+      canvas.height = Math.max(1, Math.round(height * ratio));
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      drawFrame();
+    };
+
+    const drawFrame = () => {
+      if (
+        !duration ||
+        !video.videoWidth ||
+        !video.videoHeight ||
+        !canvas.clientWidth ||
+        !canvas.clientHeight
+      ) {
+        return;
+      }
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      const scale = Math.max(width / video.videoWidth, height / video.videoHeight);
+      const drawWidth = video.videoWidth * scale;
+      const drawHeight = video.videoHeight * scale;
+      context.fillStyle = "#f45112";
+      context.fillRect(0, 0, width, height);
+      context.drawImage(
+        video,
+        (width - drawWidth) / 2,
+        (height - drawHeight) / 2,
+        drawWidth,
+        drawHeight,
+      );
+    };
+
+    const updateFrame = () => {
+      frameRequest = 0;
+      const bounds = scene.getBoundingClientRect();
+      const travel = Math.max(1, scene.offsetHeight - window.innerHeight);
+      const progress = Math.min(1, Math.max(0, -bounds.top / travel));
+      targetTime = progress >= 1 ? duration : progress * duration;
+      const difference = targetTime - video.currentTime;
+      const rate = progress >= 1
+        ? 1
+        : Math.min(6, Math.max(0.35, Math.abs(difference) * 10));
+
+      if (Math.abs(difference) > 0.02) {
+        video.playbackRate = Math.sign(difference) * rate;
+        void video.play().catch((error: unknown) => {
+          if (!(error instanceof DOMException)) {
+            console.error("The Jacobs video could not play.", error);
+          }
+        });
+      } else if (progress >= 1 && video.ended) {
+        video.currentTime = duration;
+      } else {
+        video.pause();
+      }
+      drawFrame();
+    };
+
+    const renderWhilePlaying = () => {
+      renderRequest = 0;
+      drawFrame();
+      if (video.currentTime >= targetTime && video.playbackRate > 0) {
+        video.pause();
+      } else if (video.currentTime <= targetTime && video.playbackRate < 0) {
+        video.pause();
+      }
+      if (!video.paused && !video.ended) {
+        renderRequest = window.requestAnimationFrame(renderWhilePlaying);
+      }
+    };
+    const startRendering = () => {
+      if (!renderRequest) {
+        renderRequest = window.requestAnimationFrame(renderWhilePlaying);
+      }
+    };
+    const requestFrame = () => {
+      if (!frameRequest) frameRequest = window.requestAnimationFrame(updateFrame);
+    };
+    const onMetadata = () => {
+      duration = video.duration;
+      setVideoReady(true);
+      resizeCanvas();
+      requestFrame();
+    };
+
+    video.addEventListener("loadedmetadata", onMetadata);
+    video.addEventListener("seeked", drawFrame);
+    video.addEventListener("playing", startRendering);
+    window.addEventListener("scroll", requestFrame, { passive: true });
+    window.addEventListener("resize", resizeCanvas);
+    if (video.readyState >= 1) onMetadata();
+
+    return () => {
+      video.removeEventListener("loadedmetadata", onMetadata);
+      video.removeEventListener("seeked", drawFrame);
+      video.removeEventListener("playing", startRendering);
+      window.removeEventListener("scroll", requestFrame);
+      window.removeEventListener("resize", resizeCanvas);
+      if (frameRequest) window.cancelAnimationFrame(frameRequest);
+      if (renderRequest) window.cancelAnimationFrame(renderRequest);
+    };
+  }, []);
+
+  return (
+    <>
+      <Header />
+      <main className="jacobs-page">
+        <section ref={sceneRef} className="jacobs-scroll-scene">
+          <div className="jacobs-sticky">
+            <canvas
+              ref={canvasRef}
+              className="jacobs-video-canvas"
+              aria-label="The Jacobs cafe visual story"
+            />
+            <video
+              ref={videoRef}
+              className="jacobs-video-source"
+              src="/jacobs/Main%20Edit.webm"
+              muted
+              playsInline
+              preload="auto"
+              aria-hidden="true"
+            />
+            <Link to={`/india/${state?.slug}`} className="jacobs-back-link">
+              <ArrowLeft size={16} /> BACK TO {state?.name.toUpperCase()}
+            </Link>
+            <div className="jacobs-hero-copy">
+              <span className="tiny-label">
+                {state?.name.toUpperCase()} · CAFÉ PROFILE
+              </span>
+              <h1>
+                The Jacobs<span>.</span>
+              </h1>
+              <span className="detail-city">{cafe.city}</span>
+            </div>
+            {!videoReady && <span className="jacobs-loading">LOADING STORY</span>}
+          </div>
+        </section>
+        <section className="jacobs-about">
+          <div className="jacobs-gallery">
+            <img src="/jacobs/jacobs.webp" alt="The Jacobs cafe interior" />
+            <img src="/jacobs/jacobs(1).webp" alt="The Jacobs cafe details" />
+            <img src="/jacobs/jacobs%203.webp" alt="The Jacobs cafe atmosphere" />
+          </div>
+          <div className="jacobs-copy">
+            <span className="tiny-label">
+              {state?.name.toUpperCase()} · CAFÉ PROFILE
+            </span>
+            <h2>
+              The Jacobs<span>.</span>
+            </h2>
+            <span className="detail-city">{cafe.city}</span>
+            <p>{cafe.description}</p>
+            <div className="tags">
+              {cafe.ambienceTags.map((tag) => (
+                <span key={tag}>{tag}</span>
+              ))}
+            </div>
+            <div className="detail-rule" />
+            <p className="source-note">
+              Editorial profile from the supplied collection. Location and
+              business details will be added when verified.
+            </p>
+            <Link to={`/india/${state?.slug}`} className="text-link">
+              MORE FROM {state?.name.toUpperCase()} <ArrowRight size={15} />
+            </Link>
+          </div>
+        </section>
+      </main>
+      <Footer />
+    </>
+  );
+}
+
 function SearchPage() {
   const [q, setQ] = useState(
     new URLSearchParams(useLocation().search).get("q") ?? "",
@@ -1199,6 +1407,30 @@ function NotFound({ kind }: { kind: string }) {
   );
 }
 function App() {
+  useEffect(() => {
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    if (prefersReducedMotion) return;
+
+    const lenis = new Lenis({
+      duration: 1.1,
+      smoothWheel: true,
+      syncTouch: false,
+    });
+    let frame = 0;
+    const raf = (time: number) => {
+      lenis.raf(time);
+      frame = window.requestAnimationFrame(raf);
+    };
+
+    frame = window.requestAnimationFrame(raf);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      lenis.destroy();
+    };
+  }, []);
+
   return (
     <>
       <Routes>
