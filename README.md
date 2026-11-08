@@ -2,7 +2,7 @@
 
 ATOE is a frontend-only, map-led hospitality discovery guide. Hospitality records are
 typed in [src/data/seed.ts](./src/data/seed.ts); there is no database,
-Supabase project, API key, or remote content service.
+API key, or remote content service.
 
 ## Run locally
 

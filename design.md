@@ -237,81 +237,23 @@ individual addresses, coordinates, opening hours, prices, contacts, or
 official links. Keep location fields in draft until verified. Do not use
 unrelated web images as if they were photographs of these venues.
 
-## 9. Data model
+## 9. Content management and data integrity
 
-Use Supabase PostgreSQL with at least these tables.
-
-### `states`
-
--   `id` UUID primary key
--   `name` text
--   `slug` unique text
--   `region_code` text
--   `description` text nullable
--   `map_feature_id` text unique
-
-### `cafes`
-
--   `id` UUID primary key
--   `state_id` UUID foreign key
--   `name` text
--   `slug` unique text
--   `city` text nullable
--   `address` text nullable
--   `description` text nullable
--   `ambience_tags` text array
--   `specialties` text array
--   `price_range` text nullable
--   `opening_hours` JSONB nullable
--   `phone` text nullable
--   `website_url` text nullable
--   `latitude` numeric nullable
--   `longitude` numeric nullable
--   `cover_image_path` text nullable
--   `is_featured` boolean default false
--   `published` boolean default false
--   `verification_status` enum/text, e.g. `draft`, `needs_verification`,
-    `verified`
--   `source_notes` text nullable
--   `last_verified_at` timestamp nullable
--   `created_at`, `updated_at` timestamps
-
-### Optional `cafe_images`
-
--   `id` UUID primary key
--   `cafe_id` UUID foreign key
--   `storage_path` text
--   `alt_text` text
--   `sort_order` integer
-
-### Optional `collections` and `collection_cafes`
-
-Use these if editorial collections are needed. Keep venue type separate
-from collection membership.
-
-## 10. Content management and data integrity
-
--   Supabase is the source of truth for venue records.
--   Public visitors can read published records only.
--   Only authorized editors can create or update listings.
--   Enable Row Level Security and provide explicit policies.
--   Store images in Supabase Storage or a configured image service.
+-   Local typed seed data is the source of truth for venue records.
+-   Public visitors see published records only.
 -   Track verification status and last-verified date.
--   Keep the four café profiles as editorial seed data; mark unverified
-    location details as missing.
--   Seed the two non-café venues separately and keep them out of café
-    search.
--   Use no fabricated review counts, ratings, opening hours,
-    coordinates, or business details.
--   Include clear development/demo content indicators where sample data
-    is used.
+-   Keep unverified location details missing rather than guessing.
+-   Use no fabricated review counts, ratings, opening hours, coordinates, or
+    business details.
+-   Include clear development/demo content indicators where sample data is
+    used.
 
 ## 11. Technical implementation
 
 Recommended stack: - React + TypeScript + Vite. - Tailwind CSS with
 shared design tokens. - Framer Motion for state lift and preview
-transitions. - React Router for routes. - Supabase PostgreSQL and
-Storage. - A licensed, accurate state-level India GeoJSON/SVG dataset.
+transitions. - React Router for routes. - A licensed, accurate state-level
+India GeoJSON/SVG dataset.
 
 Create reusable components: - `SiteHeader` - `IndiaMap` -
 `StateRegion` - `StateHoverPreview` - `StateSearch` -
@@ -372,10 +314,9 @@ records by stable IDs, not by array order or display names.
     profile.
 -   Unknown business details remain absent until verified.
 -   Keyboard, touch, reduced-motion, and responsive behavior work.
--   Supabase Row Level Security is configured.
 -   Type checking and production build complete without errors.
 
-## 16. Suggested build order
+## 15. Suggested build order
 
 1.  Create the project, design tokens, and shared layout.
 2.  Integrate and validate the state-level SVG map.
@@ -383,22 +324,20 @@ records by stable IDs, not by array order or display names.
     keyboard behavior.
 4.  Build state pages and café cards using local typed seed data.
 5.  Implement café profile routes.
-6.  Connect Supabase schema, policies, and data queries.
-7.  Add editorial collections if needed.
-8.  Add responsive behavior, accessibility, SEO, and loading/error
+6.  Add editorial collections if needed.
+7.  Add responsive behavior, accessibility, SEO, and loading/error
     states.
-9.  Test all states, map edge cases, and routes.
-10. Document setup, environment variables, database migrations, seed
-    process, and deployment.
+8.  Test all states, map edge cases, and routes.
+9. Document setup, seed process, and deployment.
 
 ## Implementation status and design system
 
 The interface uses the specified burnt orange (`#F45112`), electric blue (`#2549FF`), forest green (`#075E38`), warm cream (`#F4E9D2`), and ink (`#171612`) as its five core tokens. Barlow Condensed carries display headlines, Playfair Display carries editorial captions, and DM Sans/DM Mono carry utility text. Fine SVG noise, thin rules, asymmetry, oversized typography, and angular image placeholders create the print-inspired visual language. Placeholder art is intentionally typographic and is not presented as venue photography.
 
-The implementation includes responsive shared navigation, map landing page, state and café routes, global published café search, editorial/about pages, reduced-motion behavior, focus styles, local typed seed data, and Supabase schema/RLS migration. The SVG map renderer reads a local feature collection and maps stable `IN-XX` feature IDs to state records. The exact geometry asset is an external setup dependency; until installed the interface reports that state clearly and provides a complete searchable state selector.
+The implementation includes responsive shared navigation, map landing page, state and café routes, global published café search, editorial/about pages, reduced-motion behavior, focus styles, and local typed seed data. The SVG map renderer reads a local feature collection and maps stable `IN-XX` feature IDs to state records. The exact geometry asset is an external setup dependency; until installed the interface reports that state clearly and provides a complete searchable state selector.
 
 State previews use published café counts and featured records from the same published dataset. Keyboard focus opens a preview; Enter/Space opens the state page; Escape dismisses a preview. Touch users can tap once for a preview and again to open the state. Every state also has a direct searchable link, including compact union territories.
 
 ## Data integrity notes
 
-The three described, published editorial profiles retain `needs_verification` status and null business detail fields. They are associated with Maharashtra as the source collection's stated Nagpur context, while their city remains null pending individual confirmation. Apki Dulari remains a private draft. The Chug and Farro exist only in the database migration with non-café `venue_type` values and `published = false`. No image, review, price, address, opening time, URL, or phone data was invented.
+The three described, published editorial profiles retain `needs_verification` status and null business detail fields. They are associated with Maharashtra as the source collection's stated Nagpur context, while their city remains null pending individual confirmation. Apki Dulari remains a private draft. No image, review, price, address, opening time, URL, or phone data was invented.

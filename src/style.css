@@ -852,8 +852,46 @@ select:focus-visible,
 .jacobs-page {
   background: var(--orange);
 }
+.scroll-frame-scene {
+  height: 240vh;
+  position: relative;
+}
+.scroll-frame-sticky {
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow: hidden;
+  background: var(--orange);
+}
+.scroll-frame-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 100%;
+  min-height: 100%;
+}
+.scroll-frame-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(23, 22, 18, 0.18),
+    transparent 32%,
+    rgba(23, 22, 18, 0.12)
+  );
+  z-index: 1;
+}
+.scroll-frame-loading {
+  position: absolute;
+  right: clamp(24px, 7vw, 88px);
+  bottom: 28px;
+  z-index: 2;
+  font: 9px "DM Mono";
+  letter-spacing: 1px;
+}
 .jacobs-scroll-scene {
-  height: 200vh;
+  height: 240vh;
   position: relative;
 }
 .jacobs-sticky {
@@ -869,6 +907,18 @@ select:focus-visible,
   height: 100%;
   min-width: 100%;
   min-height: 100%;
+}
+.jacobs-canvas-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(23, 22, 18, 0.18),
+    transparent 32%,
+    rgba(23, 22, 18, 0.12)
+  );
+  z-index: 1;
 }
 .jacobs-video-source {
   display: none;
@@ -1224,7 +1274,10 @@ select:focus-visible,
     gap: 36px;
   }
   .jacobs-scroll-scene {
-    height: 200svh;
+    height: 240svh;
+  }
+  .scroll-frame-scene {
+    height: 240svh;
   }
   .jacobs-hero-copy .tiny-label {
     margin-bottom: 42px;
