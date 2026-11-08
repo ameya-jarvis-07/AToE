@@ -41,6 +41,7 @@ navigation surface, not a decorative background.
 | Electric blue | `--blue` | `#2549FF` | Map regions, hover accents, interactive highlights |
 | Forest green | `--green` | `#075E38` | Secondary bands, map regions, editorial sections |
 | Warm cream | `--cream` | `#F4E9D2` | Page background, light panels, text on dark/orange |
+| Story beige | `--story-beige` | `#F7F1DA` | Cafe scroll-story overlay text |
 | Ink black | `--ink` | `#171612` | Headings, body text, borders, icons, dark panels |
 
 ### Supporting colors
@@ -196,10 +197,15 @@ font-family: "DM Mono", monospace;
 
 ### Café detail page
 
-- Use a burnt-orange page surface.
-- Pair a large blue abstract image placeholder with a large editorial title.
+- Use a burnt-orange page surface with a full-viewport scroll-story hero.
+- Use each cafe's configured MP4/WebM video; do not generate or ship extracted
+  frame files.
+- Map scroll progress across the fixed three-second video duration.
+- Keep story overlay text beige `#F7F1DA` and use an ink outline on the large
+  display title for readability over video.
+- Use configured gallery images below the story and preserve their supplied alt
+  text.
 - Show only supplied and verified metadata.
-- Use thin ink rules to separate detail sections.
 - Source/verification notes remain quiet and editorial rather than prominent.
 
 ### Footer and utility actions
@@ -266,14 +272,14 @@ Avoid:
 
 - Large map and floating preview.
 - Three-column card grids.
-- Two-column café detail layout.
+- Full-height cafe story hero with a sticky canvas and supporting gallery.
 - Full navigation visible.
 
 ### Tablet
 
 - Map remains central but uses reduced canvas height.
 - Card grids reduce to two columns.
-- Detail pages remain spacious but may stack when necessary.
+- Story copy and supporting gallery remain spacious but may stack when necessary.
 
 ### Mobile
 
@@ -282,20 +288,21 @@ Avoid:
 - Map uses a smaller SVG canvas and a searchable state list.
 - State preview becomes narrower and vertically constrained.
 - Café grids become one column.
-- Café detail image and content stack vertically.
+- Cafe story copy and supporting gallery stack vertically.
 - Do not allow horizontal overflow.
 
 Breakpoints used by the current stylesheet:
 
 - `800px`: tablet/mobile layout changes.
 - `520px`: narrow mobile layout changes.
-- `prefers-reduced-motion: reduce`: motion and scroll fallback.
+- `prefers-reduced-motion: reduce`: motion and smooth-scroll fallback.
 
 ## Implementation references
 
 - Global tokens and component styles: `src/style.css`
-- Page structure and content usage: `src/App.tsx`
+- Page structure and route composition: `src/pages/` and `src/pages/AppRoutes.tsx`
+- Reusable map and cafe features: `src/features/`
 - Product design contract: `design.md`
 - Seed content and record status: `src/data/seed.ts`
 - Map asset and attribution: `public/in.svg` and `README.md`
-
+- Runtime city directory: `public/data/cities.json`

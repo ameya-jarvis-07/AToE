@@ -93,12 +93,15 @@ export type Cafe = {
   verificationStatus: "draft" | "needs_verification" | "verified";
   sourceNotes: string;
   lastVerifiedAt: string | null;
-  coverImagePath: string | null;
-  heroSequence?: {
-    framePath: string;
-    frameCount: number;
-    imagePaths: string[];
+  media: {
+    coverImagePath: string | null;
+    gallery: CafeImage[];
   };
+};
+export type CafeImage = {
+  path: string;
+  alt?: string;
+  fallbackPath?: string;
 };
 export let cafes: Cafe[] = [
   {
@@ -118,7 +121,10 @@ export let cafes: Cafe[] = [
     sourceNotes:
       "Supplied café profiles PDF. Nagpur context is suggested; individual location needs confirmation.",
     lastVerifiedAt: null,
-    coverImagePath: null,
+    media: {
+      coverImagePath: null,
+      gallery: [{ path: "/cafes/matra/story.webm" }],
+    },
   },
   {
     id: "the-jacobs",
@@ -137,14 +143,17 @@ export let cafes: Cafe[] = [
     sourceNotes:
       "Supplied café profiles PDF. Nagpur context is suggested; individual location needs confirmation.",
     lastVerifiedAt: null,
-    coverImagePath: null,
-    heroSequence: {
-      framePath: "/assets/hero-frames/frame_{index}.webp",
-      frameCount: 95,
-      imagePaths: [
-        "/jacobs/jacobs.webp",
-        "/jacobs/jacobs(1).webp",
-        "/jacobs/jacobs%203.webp",
+    media: {
+      coverImagePath: "/cafes/jacobs/jacobs.webp",
+      gallery: [
+        {
+          path: "/cafes/jacobs/cover.mp4",
+          fallbackPath: "/cafes/jacobs/cover.webm",
+          alt: "The Jacobs cafe story",
+        },
+        { path: "/cafes/jacobs/jacobs.webp", alt: "The Jacobs cafe interior" },
+        { path: "/cafes/jacobs/jacobs(1).webp", alt: "The Jacobs cafe details" },
+        { path: "/cafes/jacobs/jacobs2.webp", alt: "The Jacobs cafe atmosphere" },
       ],
     },
   },
@@ -165,14 +174,17 @@ export let cafes: Cafe[] = [
     sourceNotes:
       "Supplied café profiles PDF. Nagpur context is suggested; individual location needs confirmation.",
     lastVerifiedAt: null,
-    coverImagePath: null,
+    media: {
+      coverImagePath: null,
+      gallery: [{ path: "/cafes/rachels-cafe/story.webm" }],
+    },
   },
   {
     id: "apki-dulari",
     stateId: "IN-MH",
     name: "Apki Dulari",
     slug: "apki-dulari",
-    city: null,
+    city: "Nagpur",
     description:
       "Its defining atmosphere and signature experience are awaiting confirmation.",
     ambienceTags: [],
@@ -183,6 +195,9 @@ export let cafes: Cafe[] = [
     verificationStatus: "draft",
     sourceNotes: "Keep unpublished until editorial character is confirmed.",
     lastVerifiedAt: null,
-    coverImagePath: null,
+    media: {
+      coverImagePath: null,
+      gallery: [{ path: "/cafes/apki-dulari/story.webm" }],
+    },
   },
 ];

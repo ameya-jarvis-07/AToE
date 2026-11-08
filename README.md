@@ -42,12 +42,53 @@ text. If you have an official or designer-approved map, provide the file
 and its license/attribution terms. Do not send a screenshot; screenshots
 cannot provide selectable geographic boundaries.
 
+## Architecture
+
+- `src/pages/` contains one route page per website page.
+- `src/features/` contains reusable domain features such as the map and cafe
+  story view.
+- `src/components/` contains shared UI and behavior.
+- `src/data/seed.ts` is the single source for cafe and state records.
+- `src/hooks/`, `src/lib/`, `src/utils/`, and `src/constants/` contain
+  reusable application logic.
+
+Route composition stays in
+[src/pages/AppRoutes.tsx](./src/pages/AppRoutes.tsx). Pages are lazy-loaded,
+and Vite separates major dependencies into vendor chunks.
+
 ## Content
 
 The initial hospitality descriptions remain in the frontend seed data. Unknown
 addresses, hours, prices, contact details, coordinates, websites, and
 photographs stay absent until supplied and verified. Apki Dulari remains
 unpublished. The Chug and Farro are not hospitality records.
+
+### Adding or updating a cafe
+
+Cafe content and media are kept together in the `cafes` array in
+[src/data/seed.ts](./src/data/seed.ts). Add or update the cafe's descriptive
+fields and its `media` object in the same record:
+
+```ts
+media: {
+  coverImagePath: "/cafes/example/cover.webp",
+  gallery: [
+    {
+      path: "/cafes/example/story.mp4",
+      fallbackPath: "/cafes/example/story.webm",
+      alt: "Example cafe story",
+    },
+    { path: "/cafes/example/interior.webp", alt: "Example cafe interior" },
+  ],
+}
+```
+
+Put the MP4 and WebM videos anywhere under `public/` and add the MP4 path as
+the first gallery item. The shared scroll-story template automatically detects
+the video, scrubs its fixed three-second duration according to page scroll, and
+uses the remaining gallery items as supporting images. `coverImagePath` is
+used for cards and poster imagery. The video scrubber queues only the latest
+scroll target so seeks do not overlap.
 
 ## Routes
 
@@ -57,11 +98,13 @@ unpublished. The Chug and Farro are not hospitality records.
 - `/search?q=...` — city/state and published hospitality search
 - `/about` — editorial and data approach
 
-The city reference dataset is stored in
-[src/data/cities.json](./src/data/cities.json). It is a flat, frontend-only
-catalogue of city and municipality records used for city/state discovery and
-state-page city suggestions. Each record also has a `majorCity` display hub so
-nearby municipalities can be grouped without losing their source identity.
+The canonical city reference dataset is stored in
+[src/data/cities.json](./src/data/cities.json). The runtime copy at
+[public/data/cities.json](./public/data/cities.json) is loaded on demand by the
+app. It is a flat, frontend-only catalogue of city and municipality records
+used for city/state discovery and state-page city suggestions. Each record also
+has a `majorCity` display hub so nearby municipalities can be grouped without
+losing their source identity.
 A hospitality record is not assigned to a city until that location is supplied
 and verified.
 
@@ -69,5 +112,5 @@ and verified.
 
 `scripts/build-state-district-assets.mjs` regenerates the district GeoJSON and
 city-to-district index from their documented source data. The remaining app
-workflow uses the npm commands listed above; no agent-specific tooling is
-required.
+workflow uses the npm commands listed above; no frame-generation step is
+required because cafe stories use compact video files.

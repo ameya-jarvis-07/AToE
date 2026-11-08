@@ -10,6 +10,7 @@
   --blue: #2549ff;
   --green: #075e38;
   --cream: #f4e9d2;
+  --story-beige: #f7f1da;
   --ink: #171612;
   --line: rgba(23, 22, 18, 0.32);
 }
@@ -862,6 +863,8 @@ select:focus-visible,
   top: 0;
   overflow: hidden;
   background: var(--orange);
+  color: var(--story-beige);
+  
 }
 .scroll-frame-canvas {
   display: block;
@@ -869,6 +872,13 @@ select:focus-visible,
   height: 100%;
   min-width: 100%;
   min-height: 100%;
+}
+.scroll-frame-video-source {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 .scroll-frame-overlay {
   position: absolute;
@@ -889,39 +899,11 @@ select:focus-visible,
   z-index: 2;
   font: 9px "DM Mono";
   letter-spacing: 1px;
+  color: var(--story-beige);
 }
 .jacobs-scroll-scene {
   height: 240vh;
   position: relative;
-}
-.jacobs-sticky {
-  height: 100vh;
-  position: sticky;
-  top: 0;
-  overflow: hidden;
-  background: var(--orange);
-}
-.jacobs-video-canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-  min-width: 100%;
-  min-height: 100%;
-}
-.jacobs-canvas-overlay {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(
-    180deg,
-    rgba(23, 22, 18, 0.18),
-    transparent 32%,
-    rgba(23, 22, 18, 0.12)
-  );
-  z-index: 1;
-}
-.jacobs-video-source {
-  display: none;
 }
 .jacobs-back-link {
   position: absolute;
@@ -932,6 +914,7 @@ select:focus-visible,
   gap: 8px;
   font: 9px "DM Mono";
   letter-spacing: 1px;
+  color: var(--story-beige);
   z-index: 1;
 }
 .jacobs-hero-copy {
@@ -950,18 +933,13 @@ select:focus-visible,
   font: 900 clamp(76px, 13vw, 190px)/0.82 "Barlow Condensed";
   letter-spacing: -0.04em;
   margin: 0 0 22px;
+  color: var(--story-beige);
+  -webkit-text-stroke: 8px var(--ink);
+  paint-order: stroke fill;
 }
 .jacobs-hero-copy h1 span,
 .jacobs-copy h2 span {
-  color: var(--cream);
-}
-.jacobs-loading {
-  position: absolute;
-  right: clamp(24px, 7vw, 88px);
-  bottom: 28px;
-  font: 9px "DM Mono";
-  letter-spacing: 1px;
-  z-index: 1;
+  color: var(--story-beige);
 }
 .jacobs-about {
   display: grid;
@@ -970,6 +948,7 @@ select:focus-visible,
   align-items: start;
   padding: clamp(60px, 10vw, 140px) clamp(24px, 8vw, 120px) 100px;
   background: var(--orange);
+  color: var(--story-beige);
 }
 .jacobs-gallery {
   display: grid;
@@ -999,74 +978,13 @@ select:focus-visible,
   margin: 0 0 22px;
   max-width: 430px;
 }
-.cafe-detail {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: clamp(40px, 8vw, 120px);
-  align-items: center;
-  padding: 60px 4% 35px;
-}
-.detail-image {
-  height: 570px;
-  background: var(--blue);
-  color: var(--cream);
-  position: relative;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-}
-.detail-image:before,
-.detail-image:after {
-  content: "";
-  position: absolute;
-  width: 75%;
-  aspect-ratio: 1;
-  border: 1px solid rgba(244, 233, 210, 0.6);
-  border-radius: 50%;
-}
-.detail-image:after {
-  width: 55%;
-  box-shadow:
-    0 0 0 28px transparent,
-    0 0 0 29px rgba(244, 233, 210, 0.45),
-    0 0 0 65px transparent,
-    0 0 0 66px rgba(244, 233, 210, 0.3);
-}
-.detail-image > span:first-child {
-  position: absolute;
-  top: 18px;
-  left: 18px;
-  font: 9px "DM Mono";
-  letter-spacing: 1px;
-}
-.detail-glyph {
-  font-size: 120px;
-  z-index: 1;
-}
-.detail-copy h1 {
-  font: 900 clamp(60px, 9vw, 112px)/0.82 "Barlow Condensed";
-  letter-spacing: -0.03em;
-  margin: 24px 0 10px;
-}
-.detail-copy h1 span {
-  color: var(--cream);
-}
 .detail-city {
   font: italic 17px "Playfair Display";
-}
-.detail-copy > p {
-  font: 16px/1.6 "DM Sans";
-  margin: 34px 0;
 }
 .detail-rule {
   height: 1px;
   background: var(--ink);
   margin: 35px 0 18px;
-}
-.detail-copy > .source-note {
-  font: italic 13px/1.5 "Playfair Display";
-  margin: 0 0 22px;
-  max-width: 430px;
 }
 .search-page {
   padding: 80px 0;
@@ -1268,11 +1186,6 @@ select:focus-visible,
   .cafe-grid .cafe-image {
     height: 230px;
   }
-  .cafe-detail {
-    padding: 50px 0;
-    grid-template-columns: 1fr;
-    gap: 36px;
-  }
   .jacobs-scroll-scene {
     height: 240svh;
   }
@@ -1290,12 +1203,6 @@ select:focus-visible,
   .jacobs-copy {
     position: static;
     order: -1;
-  }
-  .detail-image {
-    height: 420px;
-  }
-  .detail-copy h1 {
-    font-size: 84px;
   }
   .about-columns {
     margin: 45px 0 65px 8%;
@@ -1460,12 +1367,6 @@ select:focus-visible,
   }
   .filters select {
     width: 100%;
-  }
-  .detail-image {
-    height: 330px;
-  }
-  .detail-copy h1 {
-    font-size: 70px;
   }
   .about-page {
     padding: 60px 0;
@@ -1797,9 +1698,6 @@ select:focus-visible,
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .cafe-detail {
-    padding-top: 36px;
-  }
   .jacobs-back-link {
     top: 20px;
     left: 24px;
@@ -1821,13 +1719,6 @@ select:focus-visible,
   }
   .jacobs-copy h2 {
     font-size: clamp(68px, 19vw, 110px);
-  }
-  .detail-copy h1 {
-    font-size: clamp(62px, 18vw, 78px);
-    overflow-wrap: anywhere;
-  }
-  .detail-copy > p {
-    font-size: 15px;
   }
   .footer {
     overflow: hidden;

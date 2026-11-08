@@ -1,57 +1,64 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 type ScrollFrameHeroProps = {
-  framePath: string;
-  frameCount: number;
+  videoPath: string;
+  fallbackVideoPath?: string;
+  posterPath?: string;
   children: ReactNode;
   className?: string;
 };
 
-const MAX_CONCURRENT_LOADS = 6;
+const SCROLL_STORY_DURATION_SECONDS = 3;
+const MIN_SEEK_DELTA_SECONDS = 1 / 30;
 
-function frameUrl(framePath: string, index: number) {
-  return framePath.replace("{index}", String(index + 1).padStart(3, "0"));
+function mediaType(path: string) {
+  if (/\.webm(?:$|[?#])/i.test(path)) return "video/webm";
+  if (/\.ogg(?:$|[?#])/i.test(path)) return "video/ogg";
+  return "video/mp4";
 }
 
 export function ScrollFrameHero({
-  framePath,
-  frameCount,
+  videoPath,
+  fallbackVideoPath,
+  posterPath,
   children,
   className = "",
 }: ScrollFrameHeroProps) {
   const sceneRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const [framesReady, setFramesReady] = useState(false);
 
   useEffect(() => {
     const scene = sceneRef.current;
     const canvas = canvasRef.current;
-    if (!scene || !canvas || frameCount < 1) return;
+    const video = videoRef.current;
+    if (!scene || !canvas || !video) return;
 
     const context = canvas.getContext("2d");
     if (!context) return;
-    const frames: Array<HTMLImageElement | undefined> = [];
-    let currentFrame = 0;
     let animationFrame = 0;
     let cancelled = false;
+    let seekPending = false;
+    let targetTime = 0;
+    let lastRequestedTime = -1;
 
-    const drawFrame = (frameIndex: number) => {
-      const frame = frames[frameIndex];
-      if (!frame?.naturalWidth || !canvas.clientWidth || !canvas.clientHeight) {
-        return;
-      }
+    const drawSource = (source: HTMLVideoElement | HTMLImageElement) => {
+      if (!canvas.clientWidth || !canvas.clientHeight) return;
+      const sourceWidth =
+        source instanceof HTMLVideoElement ? source.videoWidth : source.naturalWidth;
+      const sourceHeight =
+        source instanceof HTMLVideoElement ? source.videoHeight : source.naturalHeight;
+      if (!sourceWidth || !sourceHeight) return;
 
       const width = canvas.clientWidth;
       const height = canvas.clientHeight;
-      const scale = Math.max(
-        width / frame.naturalWidth,
-        height / frame.naturalHeight,
-      );
-      const drawWidth = frame.naturalWidth * scale;
-      const drawHeight = frame.naturalHeight * scale;
+      const scale = Math.max(width / sourceWidth, height / sourceHeight);
+      const drawWidth = sourceWidth * scale;
+      const drawHeight = sourceHeight * scale;
       context.clearRect(0, 0, width, height);
       context.drawImage(
-        frame,
+        source,
         (width - drawWidth) / 2,
         (height - drawHeight) / 2,
         drawWidth,
@@ -59,90 +66,104 @@ export function ScrollFrameHero({
       );
     };
 
+    const drawFrame = () => {
+      if (video.videoWidth) drawSource(video);
+    };
+
     const resizeCanvas = () => {
       const ratio = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = Math.max(1, Math.round(canvas.clientWidth * ratio));
       canvas.height = Math.max(1, Math.round(canvas.clientHeight * ratio));
       context.setTransform(ratio, 0, 0, ratio, 0, 0);
-      drawFrame(currentFrame);
+      drawFrame();
     };
 
-    const updateFrame = () => {
+    const seekToTarget = () => {
       animationFrame = 0;
+      if (
+        cancelled ||
+        seekPending ||
+        video.readyState < HTMLMediaElement.HAVE_METADATA
+      ) {
+        return;
+      }
+      if (Math.abs(targetTime - lastRequestedTime) < MIN_SEEK_DELTA_SECONDS) {
+        return;
+      }
+      seekPending = true;
+      lastRequestedTime = targetTime;
+      video.currentTime = targetTime;
+    };
+
+    const updateTargetFromScroll = () => {
       const travel = Math.max(1, scene.offsetHeight - window.innerHeight);
       const progress = Math.min(
         1,
         Math.max(0, (window.scrollY - scene.offsetTop) / travel),
       );
-      const nextFrame = Math.floor(progress * (frameCount - 1));
-      if (nextFrame !== currentFrame && frames[nextFrame]?.complete) {
-        currentFrame = nextFrame;
-        drawFrame(currentFrame);
+      targetTime =
+        progress * Math.min(SCROLL_STORY_DURATION_SECONDS, video.duration || 3);
+      if (!seekPending) {
+        if (!animationFrame) {
+          animationFrame = window.requestAnimationFrame(seekToTarget);
+        }
       }
     };
 
     const requestFrame = () => {
-      if (!animationFrame) {
-        animationFrame = window.requestAnimationFrame(updateFrame);
-      }
+      updateTargetFromScroll();
     };
 
-    const loadFrame = (index: number) =>
-      new Promise<HTMLImageElement | null>((resolve) => {
-        const frame = new Image();
-        frame.decoding = "async";
-        frame.onload = () => resolve(frame);
-        frame.onerror = () => {
-          console.error(`Hero frame ${index + 1} could not load: ${frame.src}`);
-          resolve(null);
-        };
-        frame.src = frameUrl(framePath, index);
-        frames[index] = frame;
-      });
-
-    const preloadFrames = async () => {
-      let nextIndex = 0;
-      let loadedCount = 0;
-
-      const worker = async () => {
-        while (!cancelled) {
-          const index = nextIndex++;
-          if (index >= frameCount) return;
-          if (await loadFrame(index)) loadedCount += 1;
-          if (index === 0 && !cancelled) {
-            resizeCanvas();
-            drawFrame(0);
-          }
-        }
-      };
-
-      await Promise.all(
-        Array.from(
-          { length: Math.min(MAX_CONCURRENT_LOADS, frameCount) },
-          worker,
-        ),
-      );
+    const handleMetadata = () => {
       if (!cancelled) {
-        setFramesReady(loadedCount === frameCount);
+        setFramesReady(true);
+        video.pause();
+        resizeCanvas();
+        updateTargetFromScroll();
         requestFrame();
       }
     };
+    const handleSeeked = () => {
+      seekPending = false;
+      drawFrame();
+      if (Math.abs(targetTime - lastRequestedTime) >= MIN_SEEK_DELTA_SECONDS) {
+        requestFrame();
+      }
+    };
+    const handleError = () => {
+      if (!cancelled) {
+        console.error(`Scroll story video could not load: ${videoPath}`);
+      }
+    };
+    const poster = posterPath ? new Image() : null;
+    if (poster && posterPath) {
+      poster.onload = () => {
+        if (!cancelled && !video.videoWidth) {
+          resizeCanvas();
+          drawSource(poster);
+        }
+      };
+      poster.src = posterPath;
+    }
 
     window.addEventListener("scroll", requestFrame, { passive: true });
     window.addEventListener("resize", resizeCanvas);
+    video.addEventListener("loadedmetadata", handleMetadata);
+    video.addEventListener("seeked", handleSeeked);
+    video.addEventListener("error", handleError);
     resizeCanvas();
-    void preloadFrames();
+    video.load();
 
     return () => {
       cancelled = true;
       window.removeEventListener("scroll", requestFrame);
       window.removeEventListener("resize", resizeCanvas);
+      video.removeEventListener("loadedmetadata", handleMetadata);
+      video.removeEventListener("seeked", handleSeeked);
+      video.removeEventListener("error", handleError);
       if (animationFrame) window.cancelAnimationFrame(animationFrame);
-      frames.forEach((frame) => {
-        if (frame) frame.src = "";
-      });
     };
-  }, [frameCount, framePath]);
+  }, [fallbackVideoPath, posterPath, videoPath]);
 
   return (
     <section ref={sceneRef} className={`scroll-frame-scene ${className}`}>
@@ -152,6 +173,23 @@ export function ScrollFrameHero({
           className="scroll-frame-canvas"
           aria-hidden="true"
         />
+        <video
+          ref={videoRef}
+          muted
+          playsInline
+          preload="auto"
+          poster={posterPath}
+          aria-hidden="true"
+          className="scroll-frame-video-source"
+        >
+          <source src={videoPath} type={mediaType(videoPath)} />
+          {fallbackVideoPath ? (
+            <source
+              src={fallbackVideoPath}
+              type={mediaType(fallbackVideoPath)}
+            />
+          ) : null}
+        </video>
         <div className="scroll-frame-overlay" aria-hidden="true" />
         {children}
         {!framesReady && (
