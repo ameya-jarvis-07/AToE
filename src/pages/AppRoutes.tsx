@@ -1056,7 +1056,7 @@ export function JacobsCafePage({
         </section>
         <section className="jacobs-about">
           <div className="jacobs-gallery">
-            <img src="/jacobs/jacobs.webp" alt="The Jacobs cafe interior" />
+            <img src="/jacobs/jacobs.webp" alt="The Jacobs cafe" />
             <img src="/jacobs/jacobs(1).webp" alt="The Jacobs cafe details" />
             <img src="/jacobs/jacobs%203.webp" alt="The Jacobs cafe atmosphere" />
           </div>
