@@ -94,6 +94,11 @@ export type Cafe = {
   sourceNotes: string;
   lastVerifiedAt: string | null;
   coverImagePath: string | null;
+  heroSequence?: {
+    framePath: string;
+    frameCount: number;
+    imagePaths: string[];
+  };
 };
 export let cafes: Cafe[] = [
   {
@@ -133,6 +138,15 @@ export let cafes: Cafe[] = [
       "Supplied café profiles PDF. Nagpur context is suggested; individual location needs confirmation.",
     lastVerifiedAt: null,
     coverImagePath: null,
+    heroSequence: {
+      framePath: "/assets/hero-frames/frame_{index}.webp",
+      frameCount: 95,
+      imagePaths: [
+        "/jacobs/jacobs.webp",
+        "/jacobs/jacobs(1).webp",
+        "/jacobs/jacobs%203.webp",
+      ],
+    },
   },
   {
     id: "rachels-cafe",

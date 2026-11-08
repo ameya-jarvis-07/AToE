@@ -19,6 +19,19 @@
 html {
   scroll-behavior: smooth;
 }
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+html.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+html.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+html.lenis.lenis-stopped {
+  overflow: hidden;
+}
 body {
   margin: 0;
   min-width: 0;
@@ -836,6 +849,156 @@ select:focus-visible,
 .cafe-page {
   background: var(--orange);
 }
+.jacobs-page {
+  background: var(--orange);
+}
+.scroll-frame-scene {
+  height: 240vh;
+  position: relative;
+}
+.scroll-frame-sticky {
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow: hidden;
+  background: var(--orange);
+}
+.scroll-frame-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 100%;
+  min-height: 100%;
+}
+.scroll-frame-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(23, 22, 18, 0.18),
+    transparent 32%,
+    rgba(23, 22, 18, 0.12)
+  );
+  z-index: 1;
+}
+.scroll-frame-loading {
+  position: absolute;
+  right: clamp(24px, 7vw, 88px);
+  bottom: 28px;
+  z-index: 2;
+  font: 9px "DM Mono";
+  letter-spacing: 1px;
+}
+.jacobs-scroll-scene {
+  height: 240vh;
+  position: relative;
+}
+.jacobs-sticky {
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow: hidden;
+  background: var(--orange);
+}
+.jacobs-video-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 100%;
+  min-height: 100%;
+}
+.jacobs-canvas-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(23, 22, 18, 0.18),
+    transparent 32%,
+    rgba(23, 22, 18, 0.12)
+  );
+  z-index: 1;
+}
+.jacobs-video-source {
+  display: none;
+}
+.jacobs-back-link {
+  position: absolute;
+  top: 28px;
+  left: clamp(24px, 7vw, 88px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 9px "DM Mono";
+  letter-spacing: 1px;
+  z-index: 1;
+}
+.jacobs-hero-copy {
+  position: absolute;
+  top: 16%;
+  left: clamp(24px, 7vw, 88px);
+  pointer-events: none;
+  z-index: 1;
+}
+.jacobs-hero-copy .tiny-label {
+  display: block;
+  margin-bottom: 72px;
+}
+.jacobs-hero-copy h1,
+.jacobs-copy h2 {
+  font: 900 clamp(76px, 13vw, 190px)/0.82 "Barlow Condensed";
+  letter-spacing: -0.04em;
+  margin: 0 0 22px;
+}
+.jacobs-hero-copy h1 span,
+.jacobs-copy h2 span {
+  color: var(--cream);
+}
+.jacobs-loading {
+  position: absolute;
+  right: clamp(24px, 7vw, 88px);
+  bottom: 28px;
+  font: 9px "DM Mono";
+  letter-spacing: 1px;
+  z-index: 1;
+}
+.jacobs-about {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.8fr);
+  gap: clamp(42px, 8vw, 120px);
+  align-items: start;
+  padding: clamp(60px, 10vw, 140px) clamp(24px, 8vw, 120px) 100px;
+  background: var(--orange);
+}
+.jacobs-gallery {
+  display: grid;
+  gap: 22px;
+}
+.jacobs-gallery img {
+  display: block;
+  width: 100%;
+  max-height: 680px;
+  object-fit: cover;
+}
+.jacobs-copy {
+  position: sticky;
+  top: 100px;
+  padding-top: 16px;
+}
+.jacobs-copy h2 {
+  font-size: clamp(64px, 8vw, 120px);
+  margin-top: 30px;
+}
+.jacobs-copy > p {
+  font: 16px/1.6 "DM Sans";
+  margin: 34px 0;
+}
+.jacobs-copy > .source-note {
+  font: italic 13px/1.5 "Playfair Display";
+  margin: 0 0 22px;
+  max-width: 430px;
+}
 .cafe-detail {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1109,6 +1272,24 @@ select:focus-visible,
     padding: 50px 0;
     grid-template-columns: 1fr;
     gap: 36px;
+  }
+  .jacobs-scroll-scene {
+    height: 240svh;
+  }
+  .scroll-frame-scene {
+    height: 240svh;
+  }
+  .jacobs-hero-copy .tiny-label {
+    margin-bottom: 42px;
+  }
+  .jacobs-about {
+    grid-template-columns: 1fr;
+    gap: 42px;
+    padding: 70px 0;
+  }
+  .jacobs-copy {
+    position: static;
+    order: -1;
   }
   .detail-image {
     height: 420px;
@@ -1618,6 +1799,28 @@ select:focus-visible,
   }
   .cafe-detail {
     padding-top: 36px;
+  }
+  .jacobs-back-link {
+    top: 20px;
+    left: 24px;
+  }
+  .jacobs-hero-copy {
+    top: 17%;
+    left: 24px;
+    right: 24px;
+    max-width: calc(100% - 48px);
+  }
+  .jacobs-hero-copy h1 {
+    font-size: clamp(68px, 19vw, 110px);
+  }
+  .jacobs-hero-copy .tiny-label {
+    margin-bottom: 32px;
+  }
+  .jacobs-about {
+    padding: 52px 0 70px;
+  }
+  .jacobs-copy h2 {
+    font-size: clamp(68px, 19vw, 110px);
   }
   .detail-copy h1 {
     font-size: clamp(62px, 18vw, 78px);
